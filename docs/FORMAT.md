@@ -306,6 +306,17 @@ node that is a direct child of a `PAGER` node. Page-specific chrome
 regular properties, same mechanism as everything else — multi-page layouts
 are not a structurally distinct feature, just a `PAGER`/`GROUP` idiom.
 
+### Grid cells
+
+`GRID` is also a container: in `everything.tosc` a `GRID` with
+`gridX=2`/`gridY=2` has four `<children>`, one per cell (here all
+`FADER`, named `"1"`-`"4"`), each with its own `frame` tiling the grid's
+area (e.g. `{x:3,y:3,w:116,h:116}`, `{x:122,y:3,w:116,h:116}`, ...). This
+library does not auto-generate cell children for a `grid()`-built node
+(see `controls.rs`) — the caller adds exactly `gridX * gridY` children
+with their own frames, same as the editor would after you drop a control
+into each cell.
+
 ## Text representation (`tosc dump`/`tosc build`)
 
 The YAML emitted by `tosc dump` (see `touch-osc-core/src/yaml.rs`) renders

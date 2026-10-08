@@ -487,6 +487,10 @@ pub fn radio(name: &str, steps: i64) -> ControlBuilder {
     b
 }
 
+/// `GRID` is a container: the editor expects exactly `columns * rows`
+/// children, one per cell, each with its own `frame` tiling the grid's
+/// area (see docs/FORMAT.md). This constructor doesn't add them for you
+/// — use `.child(...)`/`.children(...)` to add one control per cell.
 pub fn grid(name: &str, columns: i64, rows: i64) -> ControlBuilder {
     let mut b = ControlBuilder::new("GRID");
     b.0.properties = vec![

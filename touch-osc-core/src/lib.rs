@@ -19,6 +19,7 @@ mod layout;
 pub mod messages;
 pub mod text;
 pub mod tree;
+pub mod validate;
 pub mod xml;
 pub mod yaml;
 
