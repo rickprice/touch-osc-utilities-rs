@@ -1,0 +1,19 @@
+[package]
+name = "touch-osc-core"
+description = "Lossless library for reading, writing and building TouchOSC (.tosc) layouts"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+flate2 = "1"
+quick-xml = "0.36"
+serde = { version = "1", features = ["derive"] }
+serde_yaml = "0.9"
+serde_json = "1"
+uuid = { version = "1", features = ["v4"] }
+thiserror = "2"
+
+[dev-dependencies]
+pretty_assertions = "1"

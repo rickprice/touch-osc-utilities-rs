@@ -1,0 +1,17 @@
+[package]
+name = "tosc-cli"
+description = "CLI for reading, writing and building TouchOSC (.tosc) layouts"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[[bin]]
+name = "tosc"
+path = "src/main.rs"
+
+[dependencies]
+touch-osc-core = { path = "../touch-osc-core" }
+clap = { version = "4", features = ["derive"] }
+serde_yaml = "0.9"
+anyhow = "1"

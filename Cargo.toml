@@ -1,0 +1,9 @@
+[workspace]
+resolver = "2"
+members = ["touch-osc-core", "tosc-cli"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+license = "BSD-3-Clause"
+repository = "https://github.com/rickprice/touch-osc-utilities-rs"
