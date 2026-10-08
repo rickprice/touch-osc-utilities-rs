@@ -5,13 +5,16 @@ version.workspace = true
 edition.workspace = true
 license.workspace = true
 repository.workspace = true
+readme = "../README.md"
+keywords = ["touchosc", "osc", "midi", "tosc"]
+categories = ["command-line-utilities"]
 
 [[bin]]
 name = "tosc"
 path = "src/main.rs"
 
 [dependencies]
-touch-osc-core = { path = "../touch-osc-core" }
+touch-osc-core = { path = "../touch-osc-core", version = "0.1.0" }
 clap = { version = "4", features = ["derive"] }
 serde_yaml = "0.9"
 anyhow = "1"
