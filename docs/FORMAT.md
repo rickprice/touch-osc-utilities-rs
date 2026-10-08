@@ -289,10 +289,15 @@ This means:
 - Reading/writing scripts is a special case of reading/writing string
   properties, not a separate code path in the generic tree.
 - The "keep scripts as separate `.lua` files, inline at build time" feature
-  (goal 5) is a text-representation/build-time convenience only: in the
-  YAML form, a `script` property's value can reference an external file;
-  `tosc build` inlines its contents into the `script` CDATA property
-  before compressing. The `.tosc`/XML layer itself has no concept of
+  (goal 5) is a text-representation/build-time convenience only: any
+  `s`-type property's value — not just `script` — can be written as
+  `value: {file: path/to/script.lua}` instead of inline text, and
+  `tosc build` reads that file (resolved relative to the YAML file's own
+  directory) and inlines its contents before compressing. `tosc dump`
+  never emits this form itself — it always inlines the actual string, as
+  a literal YAML block scalar when the content allows it — since a
+  loaded `.tosc` has no record of what external file (if any) a script
+  originally came from. The `.tosc`/XML layer itself has no concept of
   external files.
 - No fixture contains more than one script per node, and no fixture has
   a script on a `GROUP`/`PAGER`/non-interactive node — but nothing in the

@@ -53,7 +53,8 @@ fn main() -> anyhow::Result<()> {
             force,
         } => {
             let yaml = std::fs::read_to_string(&file)?;
-            let layout = touch_osc_core::yaml::build(&yaml)?;
+            let base_dir = file.parent().unwrap_or_else(|| std::path::Path::new("."));
+            let layout = touch_osc_core::yaml::build_with_base(&yaml, base_dir)?;
 
             let issues = validate::validate(&layout);
             print_issues(&issues);

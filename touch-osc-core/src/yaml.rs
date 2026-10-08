@@ -20,21 +20,41 @@
 //! doesn't fully understand. This is what lets `tosc build` reproduce
 //! the original file exactly even for data this crate can't interpret,
 //! matching the generic tree's own "never discard unknown data" rule.
+//!
+//! One `s`-type property value gets an extra input form on `build`: a
+//! `{ file: "path/to/script.lua" }` mapping, resolved relative to
+//! `base_dir` and inlined as the property's string value. This is how
+//! goal 5 ("keep scripts as separate `.lua` files, inlined at build
+//! time") is implemented — `.tosc` itself has no concept of external
+//! files (see docs/FORMAT.md), so this only exists on the way in; `dump`
+//! always inlines the actual script text, since there's no original file
+//! path to point back to once a layout has been loaded from a `.tosc`.
 
 use crate::error::{Error, Result};
 use crate::text;
 use crate::tree::{Color, Layout, Message, MessageKind, Node, Property, Rect, ValueEntry};
 use serde::{Deserialize, Serialize};
 use serde_yaml::{Mapping, Value};
+use std::path::Path;
 
 pub fn dump(layout: &Layout) -> Result<String> {
     let text_layout = TextLayout::from_layout(layout);
     Ok(serde_yaml::to_string(&text_layout)?)
 }
 
+/// Build a [`Layout`] from YAML, resolving any `{file: ...}` script
+/// references relative to the current directory. Prefer
+/// [`build_with_base`] when the YAML came from a file, so references are
+/// resolved relative to that file's own directory instead.
 pub fn build(yaml: &str) -> Result<Layout> {
+    build_with_base(yaml, Path::new("."))
+}
+
+/// Build a [`Layout`] from YAML, resolving any `{file: ...}` script
+/// references relative to `base_dir`.
+pub fn build_with_base(yaml: &str, base_dir: &Path) -> Result<Layout> {
     let text_layout: TextLayout = serde_yaml::from_str(yaml)?;
-    text_layout.into_layout()
+    text_layout.into_layout(base_dir)
 }
 
 #[derive(Serialize, Deserialize)]
@@ -51,10 +71,10 @@ impl TextLayout {
         }
     }
 
-    fn into_layout(self) -> Result<Layout> {
+    fn into_layout(self, base_dir: &Path) -> Result<Layout> {
         Ok(Layout {
             lexml_version: self.lexml_version,
-            root: self.root.into_node()?,
+            root: self.root.into_node(base_dir)?,
         })
     }
 }
@@ -98,15 +118,15 @@ impl TextNode {
         }
     }
 
-    fn into_node(self) -> Result<Node> {
+    fn into_node(self, base_dir: &Path) -> Result<Node> {
         Ok(Node {
             id: self.id,
             node_type: self.node_type,
             properties: self
                 .properties
                 .into_iter()
-                .map(TextProperty::into_property)
-                .collect(),
+                .map(|p| p.into_property(base_dir))
+                .collect::<Result<Vec<_>>>()?,
             values: self
                 .values
                 .into_iter()
@@ -120,7 +140,7 @@ impl TextNode {
             children: self
                 .children
                 .into_iter()
-                .map(TextNode::into_node)
+                .map(|c| c.into_node(base_dir))
                 .collect::<Result<Vec<_>>>()?,
         })
     }
@@ -150,15 +170,32 @@ impl TextProperty {
         }
     }
 
-    fn into_property(self) -> Property {
+    fn into_property(self, base_dir: &Path) -> Result<Property> {
         if let Some(raw) = extract_raw_xml(&self.value) {
-            return Property {
+            return Ok(Property {
                 type_code: self.type_code,
                 key_raw: text::encode_cdata(&self.key),
                 value_raw: raw,
-            };
+            });
         }
-        match self.type_code.as_str() {
+        if let Some(file) = extract_script_file(&self.value) {
+            if self.type_code != "s" {
+                return Err(Error::Malformed(format!(
+                    "property '{}' uses {{file: ...}} but has type '{}', not 's'",
+                    self.key, self.type_code
+                )));
+            }
+            let path = base_dir.join(&file);
+            let contents = std::fs::read_to_string(&path).map_err(|e| {
+                Error::Malformed(format!(
+                    "reading script file {} for property '{}': {e}",
+                    path.display(),
+                    self.key
+                ))
+            })?;
+            return Ok(Property::string(&self.key, &contents));
+        }
+        Ok(match self.type_code.as_str() {
             "b" => Property::bool(&self.key, self.value.as_bool().unwrap_or(false)),
             "i" => Property::int(&self.key, self.value.as_i64().unwrap_or(0)),
             "f" => Property::float(&self.key, self.value.as_f64().unwrap_or(0.0)),
@@ -181,8 +218,18 @@ impl TextProperty {
                     value_raw,
                 }
             }
+        })
+    }
+}
+
+fn extract_script_file(v: &Value) -> Option<String> {
+    let m = v.as_mapping()?;
+    if m.len() == 1 {
+        if let Some(Value::String(s)) = m.get(Value::String("file".to_string())) {
+            return Some(s.clone());
         }
     }
+    None
 }
 
 fn encode_property_value(p: &Property) -> Value {
@@ -485,5 +532,51 @@ mod tests {
         assert!(yaml.contains("raw_xml"));
         let rebuilt = build(&yaml).unwrap();
         assert_eq!(layout, rebuilt);
+    }
+
+    #[test]
+    fn script_property_can_reference_an_external_lua_file() {
+        let dir = std::env::temp_dir().join(format!("tosc-yaml-test-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let script_path = dir.join("on_init.lua");
+        std::fs::write(&script_path, "function init()\n  print('hi')\nend\n").unwrap();
+
+        let yaml = r#"
+lexml_version: '5'
+root:
+  id: 11111111-1111-1111-1111-111111111111
+  type: BUTTON
+  properties:
+  - type: s
+    key: script
+    value:
+      file: on_init.lua
+  values: []
+"#;
+        let layout = build_with_base(yaml, &dir).unwrap();
+        let script = layout.root.property("script").unwrap();
+        assert_eq!(
+            script.as_string().unwrap(),
+            "function init()\n  print('hi')\nend\n"
+        );
+
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn file_reference_on_a_non_string_property_is_an_error() {
+        let yaml = r#"
+lexml_version: '5'
+root:
+  id: 11111111-1111-1111-1111-111111111111
+  type: BUTTON
+  properties:
+  - type: i
+    key: shape
+    value:
+      file: whatever.lua
+  values: []
+"#;
+        assert!(build(yaml).is_err());
     }
 }
