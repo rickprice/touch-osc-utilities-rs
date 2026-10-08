@@ -1,0 +1,16 @@
+# Rust
+/target/
+**/target/
+
+# Nix
+/result
+/result-*
+.direnv/
+.envrc.local
+
+# Editors / OS
+.DS_Store
+*.swp
+
+# Local assistant settings
+.claude/
