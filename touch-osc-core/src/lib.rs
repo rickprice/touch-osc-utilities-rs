@@ -18,6 +18,7 @@ mod layout;
 pub mod text;
 pub mod tree;
 pub mod xml;
+pub mod yaml;
 
 pub use error::{Error, Result};
 pub use tree::*;

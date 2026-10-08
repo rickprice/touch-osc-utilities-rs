@@ -306,6 +306,29 @@ node that is a direct child of a `PAGER` node. Page-specific chrome
 regular properties, same mechanism as everything else — multi-page layouts
 are not a structurally distinct feature, just a `PAGER`/`GROUP` idiom.
 
+## Text representation (`tosc dump`/`tosc build`)
+
+The YAML emitted by `tosc dump` (see `touch-osc-core/src/yaml.rs`) renders
+known property/value shapes as native YAML (bool, number, string, or a
+`{r,g,b,a}`/`{x,y,w,h}` mapping for `c`/`r` types) only after verifying
+that reconstructing the raw XML from the decoded value reproduces the
+original byte-for-byte. Anything that doesn't verify — an unusual
+encoding, a type code this crate doesn't know, a future shape — is
+emitted as `{ raw_xml: "<...>" }` instead, so `tosc build` can always
+reproduce the original exactly even for data it doesn't understand.
+`<midi>`/`<osc>` message bindings are always emitted this way for now
+(no typed decoding yet — see goal 4/Step 5 in the project plan).
+
+One cosmetic consequence of using YAML, worth knowing about: the
+underlying emitter (`serde_yaml` / `libyaml`) only renders a multi-line
+string as a literal block scalar (clean indented text) when every line
+has no trailing whitespace. A Lua script with a stray blank line that
+contains spaces (common from editor auto-indent) will instead render as
+a double-quoted string with escaped `\n`s — still correct and lossless,
+just less pleasant to read/diff for that one property. This isn't
+something this project special-cases around; it only affects display,
+not correctness.
+
 ## Known gaps / unverified assumptions
 
 - No MIDI message types besides `CONTROLCHANGE` were available to sample.

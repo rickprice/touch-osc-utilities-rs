@@ -45,7 +45,9 @@ pub fn extract_tag_f64(raw: &str, tag: &str) -> Option<f64> {
     extract_tag_text(raw, tag)?.trim().parse().ok()
 }
 
-fn extract_tag_text<'a>(raw: &'a str, tag: &str) -> Option<&'a str> {
+/// Pull the text content out of a `<tag>...</tag>` sub-element inside a
+/// raw XML fragment.
+pub fn extract_tag_text<'a>(raw: &'a str, tag: &str) -> Option<&'a str> {
     let open = format!("<{tag}>");
     let close = format!("</{tag}>");
     let start = raw.find(open.as_str())? + open.len();
