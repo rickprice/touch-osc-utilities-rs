@@ -22,6 +22,16 @@ control builders, OSC/MIDI message builders, validation, and external
 fixtures (see `tests/fixtures/` and `docs/FORMAT.md`). Not yet published
 to crates.io.
 
+## Using with Claude Code
+
+If you want Claude to use this tool when editing `.tosc` files in some
+*other* project, don't clone this repo into that project. Instead copy
+the skill at [`.claude/skills/touchosc/SKILL.md`](.claude/skills/touchosc/SKILL.md)
+into that project's `.claude/skills/touchosc/SKILL.md` (or into
+`~/.claude/skills/touchosc/SKILL.md` to make it available everywhere).
+It tells Claude to clone and build this repo on demand, then use the
+`tosc` CLI instead of hand-editing `.tosc` XML.
+
 ## Install / Build
 
 ### Cargo

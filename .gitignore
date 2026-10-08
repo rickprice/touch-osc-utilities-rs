@@ -13,4 +13,5 @@
 *.swp
 
 # Local assistant settings
-.claude/
+.claude/*
+!.claude/skills/
