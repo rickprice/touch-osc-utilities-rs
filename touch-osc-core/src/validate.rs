@@ -282,6 +282,8 @@ fn check_node(node: &Node, parent_type: Option<&str>, issues: &mut Vec<Issue>) {
         }
     }
 
+    check_lua_syntax(node, issues);
+
     for message in &node.messages {
         check_message(node, message, issues);
     }
@@ -300,6 +302,35 @@ fn check_node(node: &Node, parent_type: Option<&str>, issues: &mut Vec<Issue>) {
             }
         }
         check_node(child, Some(node.node_type.as_str()), issues);
+    }
+}
+
+/// Parse the `script` property's Lua source, if present, and report any
+/// syntax error. This only checks syntax (via `full_moon`, a lossless
+/// Lua parser) -- it can't catch a script that's syntactically valid but
+/// wrong, but a syntax error is exactly the kind of mistake that's silent
+/// until you open the file in the editor and the control just doesn't
+/// work. Only the `script` key is checked (not every `s`-type property)
+/// since that's the only key observed holding Lua source -- see
+/// docs/FORMAT.md.
+fn check_lua_syntax(node: &Node, issues: &mut Vec<Issue>) {
+    let Some(prop) = node.property("script") else {
+        return;
+    };
+    let Some(code) = prop.as_string() else {
+        return;
+    };
+    if let Err(errors) = full_moon::parse(&code) {
+        let detail = errors
+            .iter()
+            .map(|e| e.to_string())
+            .collect::<Vec<_>>()
+            .join("; ");
+        issues.push(Issue {
+            severity: Severity::Error,
+            node_id: Some(node.id.clone()),
+            message: format!("'script' has a Lua syntax error: {detail}"),
+        });
     }
 }
 
@@ -470,5 +501,31 @@ mod tests {
         assert!(issues
             .iter()
             .any(|i| i.severity == Severity::Warning && i.message.contains("also named")));
+    }
+
+    #[test]
+    fn detects_lua_syntax_error_in_script() {
+        let mut node: Node = controls::button("play").build();
+        node.set_property(crate::tree::Property::string(
+            "script",
+            "function init(\n  print('missing closing parens'\nend",
+        ));
+        let issues = validate(&layout_from(node));
+        assert!(issues
+            .iter()
+            .any(|i| i.severity == Severity::Error && i.message.contains("Lua syntax error")));
+    }
+
+    #[test]
+    fn valid_lua_script_has_no_errors() {
+        let mut node: Node = controls::button("play").build();
+        node.set_property(crate::tree::Property::string(
+            "script",
+            "function init()\n  self.color = Color(1, 0, 0, 1)\nend\n",
+        ));
+        let issues = validate(&layout_from(node));
+        assert!(!issues
+            .iter()
+            .any(|i| i.message.contains("Lua syntax error")));
     }
 }
