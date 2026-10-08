@@ -12,9 +12,11 @@
 //! `.tosc` files and what remains an assumption.
 
 pub mod container;
+pub mod controls;
 pub mod error;
 pub mod idgen;
 mod layout;
+pub mod messages;
 pub mod text;
 pub mod tree;
 pub mod xml;
